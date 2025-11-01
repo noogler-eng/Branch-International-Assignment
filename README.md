@@ -62,3 +62,9 @@ curl -X POST http://localhost:8000/api/loans \
 
 
 sudo docker compose --env-file .env.dev up --build
+sudo docker compose --env-file .env.staging up --build
+sudo docker compose --env-file .env.prod up --build
+
+docker compose --env-file .env.dev up --build
+docker compose --env-file .env.staging up --build
+docker compose --env-file .env.prod up --build

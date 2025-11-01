@@ -1,10 +1,18 @@
 from flask import Flask
-
-from .config import Config
+from .config import DevelopmentConfig, StagingConfig, ProductionConfig
 
 def create_app() -> Flask:
+    flask_env = os.getenv("FLASK_ENV", "development")
+
+    if flask_env == "production":
+        config_class = ProductionConfig
+    elif flask_env == "staging":
+        config_class = StagingConfig
+    else:
+        config_class = DevelopmentConfig
+
     app = Flask(__name__)
-    app.config.from_object(Config())
+    app.config.from_object(config_class())
 
     # Lazy imports to avoid circular deps during app init
     from .routes.health import bp as health_bp
