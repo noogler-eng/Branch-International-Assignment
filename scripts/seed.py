@@ -3,7 +3,7 @@ from uuid import UUID
 from decimal import Decimal
 from sqlalchemy import select
 
-from app.db import SessionContext
+from app.db import SessionContext, engine, Base
 from app.models import Loan
 
 DUMMY_LOANS = [
@@ -15,6 +15,10 @@ DUMMY_LOANS = [
 ]
 
 def upsert_dummy_data():
+    # ✅ Ensure the tables are created before seeding
+    print("📦 Creating database tables (if not exist)...")
+    Base.metadata.create_all(bind=engine)
+
     with SessionContext() as session:
         inserted = 0
         for row in DUMMY_LOANS:
@@ -33,7 +37,8 @@ def upsert_dummy_data():
             )
             session.add(loan)
             inserted += 1
-        print(f"Seed complete. Inserted {inserted} rows.")
+        session.commit()
+        print(f"🌱 Seed complete. Inserted {inserted} rows.")
 
 if __name__ == "__main__":
     upsert_dummy_data()

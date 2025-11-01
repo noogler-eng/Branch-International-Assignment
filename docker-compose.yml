@@ -4,15 +4,20 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: microloans
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          memory: ${DB_MEMORY_LIMIT:-512M}
+          cpus: ${DB_CPU_LIMIT:-0.5}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d microloans"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -22,14 +27,25 @@ services:
     environment:
       FLASK_ENV: ${FLASK_ENV}
       DATABASE_URL: ${DATABASE_URL}
-      PORT: ${PORT}
+      LOG_LEVEL: ${LOG_LEVEL}
       PYTHONPATH: /app
     depends_on:
       db:
         condition: service_healthy
-    expose:
-      - "8000"
-    command: gunicorn -w 2 -b 0.0.0.0:8000 wsgi:app
+    ports:
+      - "${API_PORT:-8000}:8000"
+    # volumes:
+    #   - ./app:/app:delegated
+    command: >
+      sh -c 'if [ "$FLASK_ENV" = "development" ]; then
+        echo "🧑‍💻 Running in development mode with Flask...";
+        flask run --host=0.0.0.0 --port=8000 --reload &
+        sleep 5 && python scripts/seed.py;
+        wait
+      else
+        echo "🚀 Running in $FLASK_ENV mode with Gunicorn...";
+        gunicorn -w ${GUNICORN_WORKERS:-2} -b 0.0.0.0:8000 wsgi:app;
+      fi'
 
   nginx:
     image: nginx:latest
@@ -40,7 +56,18 @@ services:
       - ./certs/self.crt:/etc/ssl/certs/self.crt
       - ./certs/self.key:/etc/ssl/private/self.key
     ports:
-      - "443:443"
+      - "${NGINX_PORT:-443}:443"
+
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: branchloans-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - api
 
 volumes:
   db_data:
