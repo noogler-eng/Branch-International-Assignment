@@ -35,7 +35,8 @@ jobs:
 
       - name: Build Docker Image
         run: docker build --no-cache -t branchloanapi:${{ github.sha }} .
-
+      - name: Update Trivy DB
+        run: trivy --download-db-only
       - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@master
         with:
