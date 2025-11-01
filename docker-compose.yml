@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   db:
     image: postgres:16
@@ -18,16 +20,27 @@ services:
   api:
     build: .
     environment:
-      FLASK_ENV: development
-      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/microloans
-      PORT: 8000
+      FLASK_ENV: ${FLASK_ENV}
+      DATABASE_URL: ${DATABASE_URL}
+      PORT: ${PORT}
       PYTHONPATH: /app
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     command: gunicorn -w 2 -b 0.0.0.0:8000 wsgi:app
+
+  nginx:
+    image: nginx:latest
+    depends_on:
+      - api
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./certs/self.crt:/etc/ssl/certs/self.crt
+      - ./certs/self.key:/etc/ssl/private/self.key
+    ports:
+      - "443:443"
 
 volumes:
   db_data:
