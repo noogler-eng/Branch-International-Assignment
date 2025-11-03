@@ -1,70 +1,117 @@
-# Flask Microloans API + Postgres (Docker)
+# Devops Assignment
 
-Minimal REST API for microloans, built with Flask, SQLAlchemy, Alembic, and PostgreSQL (via Docker Compose).
-
-## Quick start
-
+## Structure
 ```bash
-# 1) Build and start services
-docker compose up -d --build
-
-# 2) Run DB migrations
-docker compose exec api alembic upgrade head
-
-# 3) Seed dummy data (idempotent)
-docker compose exec api python scripts/seed.py
-
-# 4) Hit endpoints
-curl http://localhost:8000/health
-curl http://localhost:8000/api/loans
+  ├── app/                     # Flask Application Code
+  ├── certs/                   # Self-signed certificates
+  │   ├── self.crt
+  │   └── self.key
+  ├── nginx.conf               # Reverse Proxy + HTTPS Config
+  ├── prometheus.yml           # Prometheus Config
+  ├── docker-compose.yml       # Multi-environment setup
+  ├── .env.dev                 # Development environment variables
+  ├── .env.staging             # Staging environment variables
+  ├── .env.prod                # Production environment variables
+  ├── .github/workflows/ci.yml # GitHub Actions pipeline
+  ├── tests/                   # Unit tests
+  └── README.md
 ```
 
-## Configuration
+## Running the Application
+This project uses Docker Compose to manage different environments — development, staging, and production.
 
-See `.env.example` for env vars. By default:
-- `DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/microloans`
-- API listens on `localhost:8000`.
+### Prerequisites
+Make sure you have the following installed:
+1. Docker
+2. Docker Compose
+3. Python 3.11+
 
-## API
+### Environment Setup
+Each environment has its own .env configuration file:
+1. .env.dev → Development
+2. .env.staging → Staging
+3. .env.prod → Production
 
-- GET `/health` → `{ "status": "ok" }`
-- GET `/api/loans` → list all loans
-- GET `/api/loans/:id` → get loan by id
-- POST `/api/loans` → create loan (status defaults to `pending`)
-
-Example create:
+### dev env
 ```bash
-curl -X POST http://localhost:8000/api/loans \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "borrower_id": "usr_india_999",
-    "amount": 12000.50,
-    "currency": "INR",
-    "term_months": 6,
-    "interest_rate_apr": 24.0
-  }'
+  FLASK_ENV=""
+  POSTGRES_USER=""
+  POSTGRES_PASSWORD=""
+  POSTGRES_DB=""
+  DATABASE_URL=""
+  DB_MEMORY_LIMIT=""
+  DB_CPU_LIMIT=""
+  LOG_LEVEL=""
+  API_PORT=""
+  NGINX_PORT=""
+  FLASK_APP=""
 ```
 
-- GET `/api/stats` → aggregate stats: totals, avg, grouped by status/currency.
+### staging env
+```bash
+  FLASK_ENV=""
+  POSTGRES_USER=""
+  POSTGRES_PASSWORD=""
+  POSTGRES_DB=""
+  DATABASE_URL=""
+  DB_MEMORY_LIMIT=""
+  DB_CPU_LIMIT=""
+  LOG_LEVEL=""
+  API_PORT=""
+  NGINX_PORT=""
+```
 
-## Development
+### prod env
+```bash
+  FLASK_ENV=""
+  POSTGRES_USER=""
+  POSTGRES_PASSWORD=""
+  POSTGRES_DB=""
+  DATABASE_URL=""
+  DB_MEMORY_LIMIT=""
+  DB_CPU_LIMIT=""
+  LOG_LEVEL=""
+  GUNICORN_WORKERS=""
+  API_PORT=""
+  NGINX_PORT=""
+``` 
 
-- App entrypoint: `wsgi.py` (`wsgi:app`)
-- Flask app factory: `app/__init__.py`
-- Models: `app/models.py`
-- Migrations: `alembic/`
+### Development Environment
+Build and start containers using the development configuration:
+```bash 
+  docker compose --env-file .env.dev up --build 
+```
+1. Hot reload enabled
+2. Debug logging
+3. Light resource limits
+4. HTTPS enabled (via Nginx)
 
-## Notes
+### Staging Environment
+Build and start containers using the staging configuration:
+```bash 
+  docker compose --env-file .env.staging up --build 
+```
+1. Mimics production
+2. Medium resources
+3. Info-level logging
 
-- Amounts are validated server-side (0 < amount ≤ 50000).
-- No authentication for this prototype.
+### Production Environment
+Build and start containers using the production configuration:
+```bash 
+  docker compose --env-file .env.prod up --build 
+```
+1. Gunicorn-based serving
+2. HTTPS enabled (via Nginx)
+3. Resource constraints & persistence
 
+### Stopping Containers
+To stop running containers (any environment) with remove all containers, networks, and volumes:
+```bash
+  docker compose down -v
+```
 
+### Access the Application
+- API Endpoint: https://branchloans/health
+- Prometheus Dashboard: http://localhost:9090
 
-sudo docker compose --env-file .env.dev up --build
-sudo docker compose --env-file .env.staging up --build
-sudo docker compose --env-file .env.prod up --build
-
-docker compose --env-file .env.dev up --build
-docker compose --env-file .env.staging up --build
-docker compose --env-file .env.prod up --build
+---
