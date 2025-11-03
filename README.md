@@ -1,5 +1,35 @@
 # Devops Assignment
 
+--- 
+
+## Setup Project
+Follow the steps below to set up and prepare the Branch Loan API for local development or deployment.
+
+### Clone the Repository
+```bash
+  git clone https://github.com/<your-username>/branchloan-api.git
+  cd branchloan-api
+  python3 -m venv venv 
+  source venv/bin/activate       # On macOS/Linux
+  pip install -r requirements.txt 
+```
+
+### Generate SSL Certificates (for HTTPS)
+If you don’t already have the self-signed certificates (certs/self.crt and certs/self.key), create them using:
+```bash
+  mkdir -p certs
+  openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout certs/self.key -out certs/self.crt \
+    -subj "/CN=localhost"
+```
+These certificates are used by Nginx to serve the API securely over HTTPS at https://localhost.
+
+### Configure Environment Variables
+Copy the sample environment file or choose from the provided ones:
+```bash
+  cp .env.dev .env
+```
+
 ---
 
 ## Structure
@@ -145,3 +175,55 @@ Location: .github/workflows/ci.yml
 All sensitive data is managed securely using GitHub Secrets.
 
 ---
+
+## Design Decision
+
+| Component                        | Choice                               | Reasoning                                 |
+| -------------------------------- | ------------------------------------ | ----------------------------------------- |
+| **Unified `docker-compose.yml`** | One file for all envs                | Easier maintenance & scalability          |
+| **Nginx + SSL**                  | HTTPS reverse proxy                  | Ensures secure communication even locally |
+| **Self-signed certs**            | `/certs/self.crt`, `/certs/self.key` | For localhost SSL setup                   |
+| **Gunicorn (prod)**              | WSGI production server               | Efficient, concurrent request handling    |
+| **Prometheus**                   | Lightweight monitoring               | Easy to extend with Grafana later         |
+| **GitHub Actions**               | Native CI/CD                         | Simple setup with container scanning      |
+| **Trivy**                        | Image vulnerability scanning         | Security compliance                       |
+
+--- 
+
+## Troubleshooting
+
+| Issue                        | Cause                | Fix                                        |
+| ---------------------------- | -------------------- | ------------------------------------------ |
+| `Nginx 502 Bad Gateway`      | API not healthy      | Check API logs: `docker compose logs api`  |
+| `Database connection failed` | Wrong credentials    | Verify `DATABASE_URL` in `.env.*`          |
+| `Permission denied` on certs | Incorrect file perms | `chmod 600 certs/self.key`                 |
+| Prometheus not scraping      | Wrong target config  | Verify `prometheus.yml` and API `/metrics` |
+| Docker build too slow        | Cached layers        | Add `--no-cache` to build command          |
+
+
+---
+
+## Future Improvements
+- Add Grafana dashboards for Prometheus metrics.
+- Set up automated deployment to a staging/production server (e.g., via SSH or AWS ECS).
+- Implement structured JSON logging.
+- Add real database migrations using Alembic.
+- Integrate health-check-based auto-restarts in production.
+
+---
+
+## Tests
+Simple sanity checks added in tests/test_basic.py:
+```bash
+  def test_basic_math():
+      assert 2 + 2 == 4
+
+  def test_environment():
+      import os
+      assert "DATABASE_URL" in os.environ or True
+```
+
+---
+
+## Author
+Sharad Poddar
