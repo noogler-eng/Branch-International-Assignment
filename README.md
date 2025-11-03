@@ -1,5 +1,7 @@
 # Devops Assignment
 
+---
+
 ## Structure
 ```bash
   ├── app/                     # Flask Application Code
@@ -16,6 +18,7 @@
   ├── tests/                   # Unit tests
   └── README.md
 ```
+---
 
 ## Running the Application
 This project uses Docker Compose to manage different environments — development, staging, and production.
@@ -113,5 +116,32 @@ To stop running containers (any environment) with remove all containers, network
 ### Access the Application
 - API Endpoint: https://branchloans/health
 - Prometheus Dashboard: http://localhost:9090
+
+---
+
+## CI/CD Pipeline Overview
+Location: .github/workflows/ci.yml
+
+### Stages
+1. Test Stage
+  - Runs Pytest to verify functionality
+  - Fails early on test errors
+2. Build Stage
+  - Builds Docker image with commit SHA tag
+3. Security Scan Stage
+  - Runs Trivy scan for OS/library vulnerabilities
+  - Pipeline fails on critical issues
+4. Push Stage
+  - Pushes image to Docker Hub if all stages succeed
+  - Tags images as both ${{ github.sha }} and latest
+
+### Trigger Events
+- On push to main
+- On pull_request (test only, no image push)
+
+### Secrets Used
+- DOCKERHUB_USERNAME
+- DOCKERHUB_TOKEN
+All sensitive data is managed securely using GitHub Secrets.
 
 ---
