@@ -226,4 +226,4 @@ Simple sanity checks added in tests/test_basic.py:
 ---
 
 ## Author
-Sharad Poddar
+Sharad 

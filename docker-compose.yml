@@ -1,41 +1,89 @@
+# Docker Compose configuration for the Dummy Branch App
+# This setup includes a PostgreSQL database, a Flask API server, an Nginx reverse proxy,
+# and Prometheus for monitoring.
+
+# Use environment variables to configure ports, resource limits, and other settings.
+# Example environment variables:
+# POSTGRES_USER=branch_user
+# POSTGRES_PASSWORD=branch_password
+# POSTGRES_DB=branch_db
+# FLASK_ENV=development
+# DATABASE_URL=postgresql://branch_user:branch_password@db:5432/branch_db
+# LOG_LEVEL=info
+# DB_PORT=5432
+# API_PORT=8000
+# NGINX_PORT=443
+# DB_MEMORY_LIMIT=512M
+# DB_CPU_LIMIT=0.5
+# GUNICORN_WORKERS=2  
+
+# version of Docker Compose file format
+# Use version 3.9 for compatibility with the latest features
 version: "3.9"
 
+# Define the services that make up the application (DB, API, Nginx, Prometheus)
+# Each service is configured with its image, environment variables, ports, volumes, and dependencies.
 services:
+  # PostgreSQL Database Service
+  # Configured with environment variables for user, password, and database name
+  # Includes healthcheck to ensure the database is ready before the API starts
   db:
     image: postgres:16
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+    # port mapping for database access
+    # default is 5432, can be overridden with DB_PORT environment variable
+    # {DB_PORT:-5432} fallback port of the host machine mapped to container's 5432
     ports:
       - "${DB_PORT:-5432}:5432"
+    # persistent storage for database data, locally stored in a Docker volume
     volumes:
       - db_data:/var/lib/postgresql/data
+    # resource limits for the database container
     deploy:
       resources:
         limits:
           memory: ${DB_MEMORY_LIMIT:-512M}
           cpus: ${DB_CPU_LIMIT:-0.5}
+    # healthcheck to monitor database readiness
+    # the API service will wait for this to be healthy before starting
+    # uses pg_isready command to check if the database is ready to accept connections
+    # retries up to 10 times with 5s interval and timeout of 5s
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # Flask API Service
+  # Built from the local Dockerfile in the current directory
+  # Configured with environment variables for Flask environment, database URL, and log level
+  # Depends on the database service to be healthy before starting
   api:
+    # Build the API service from the current directory
+    # Dockerfile should set up the Flask application (root)
+    # Make sure to include necessary dependencies in the Dockerfile
     build: .
+    # Set environment variables for the Flask app
     environment:
       FLASK_ENV: ${FLASK_ENV}
       DATABASE_URL: ${DATABASE_URL}
       LOG_LEVEL: ${LOG_LEVEL}
       PYTHONPATH: /app
+    # Ensure the API service waits for the database to be healthy before starting
     depends_on:
       db:
         condition: service_healthy
+    # Map the API port to the host machine
+    # Default is 8000, can be overridden with API_PORT environment variable
     ports:
       - "${API_PORT:-8000}:8000"
     # volumes:
     #   - ./app:/app:delegated
+    # Command to run the Flask app in development mode or Gunicorn in production
+    # Uses a shell command to check the FLASK_ENV variable
     command: >
       sh -c 'if [ "$FLASK_ENV" = "development" ]; then
         echo "🧑‍💻 Running in development mode with Flask...";
@@ -47,18 +95,29 @@ services:
         gunicorn -w ${GUNICORN_WORKERS:-2} -b 0.0.0.0:8000 wsgi:app;
       fi'
 
+  # Nginx Reverse Proxy Service
+  # Uses the latest Nginx image
+  # Configured to depend on the API service
+  # Maps SSL certificates and Nginx configuration from local files
   nginx:
     image: nginx:latest
     depends_on:
       - api
+    # Mount local Nginx configuration and SSL certificates into the container
+    # Make sure to create nginx.conf and self-signed certificates in the specified paths
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./certs/self.crt:/etc/ssl/certs/self.crt
       - ./certs/self.key:/etc/ssl/private/self.key
+    # Map the Nginx port to the host machine
+    # Default is 443, can be overridden with NGINX_PORT environment variable
     ports:
       - "${NGINX_PORT:-443}:443"
 
-
+  # Prometheus Monitoring Service
+  # Uses the latest Prometheus image
+  # Configured to depend on the API service
+  # Maps Prometheus configuration from a local file
   prometheus:
     image: prom/prometheus:latest
     container_name: branchloans-prometheus
@@ -66,8 +125,11 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    # depends_on the API service to ensure it starts after the API is up
     depends_on:
       - api
 
+# Define Docker volumes for persistent storage
+# main volume folder for database data
 volumes:
   db_data:
