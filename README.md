@@ -30,6 +30,13 @@ Copy the sample environment file or choose from the provided ones:
   cp .env.dev .env
 ```
 
+### Set Local Network Config (Terminal)
+```bash
+  sudo nano /etc/hosts
+  # set key and value
+  127.0.0.1     branchloans.com
+```
+
 ---
 
 ## Structure
